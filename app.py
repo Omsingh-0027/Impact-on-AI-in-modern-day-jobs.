@@ -62,8 +62,41 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------- LOAD MODEL ----------------
-with open("model.pkl", "rb") as f:
-    model = pickle.load(f)
+import os
+
+model_path = "model.pkl"
+
+# If model doesn't exist, train it
+if not os.path.exists(model_path):
+    st.warning("⚠️ Training model... this may take a moment on first load.")
+    from sklearn.compose import ColumnTransformer
+    from sklearn.preprocessing import OneHotEncoder
+    from sklearn.impute import SimpleImputer
+    from sklearn.pipeline import Pipeline
+    from sklearn.linear_model import LinearRegression
+    
+    df = pd.read_csv('ai_job_impact.csv')
+    features = ['Age', 'Years_Experience', 'Salary_Before_AI', 'Work_Hours_Per_Week', 'Job_Satisfaction', 'Education_Level', 'Industry']
+    target = 'Salary_After_AI'
+    
+    X = df[features]
+    y = df[target]
+    
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', SimpleImputer(strategy='median'), ['Age', 'Years_Experience', 'Salary_Before_AI', 'Work_Hours_Per_Week', 'Job_Satisfaction']),
+            ('cat', OneHotEncoder(handle_unknown='ignore'), ['Education_Level', 'Industry'])
+        ])
+    
+    model = Pipeline(steps=[('preprocessor', preprocessor), ('regressor', LinearRegression())])
+    model.fit(X, y)
+    
+    with open(model_path, 'wb') as f:
+        pickle.dump(model, f)
+    st.success("✅ Model trained and saved!")
+else:
+    with open(model_path, "rb") as f:
+        model = pickle.load(f)
 
 # ---------------- HEADER ----------------
 st.markdown('<div class="title">🚀 AI Salary Impact Predictor</div>', unsafe_allow_html=True)
@@ -98,7 +131,7 @@ predict = col_btn1.button("🔮 Predict Salary")
 reset = col_btn2.button("🔄 Reset")
 
 if reset:
-    st.experimental_rerun()
+    st.rerun()
 
 # ---------------- PREDICTION ----------------
 if predict:
